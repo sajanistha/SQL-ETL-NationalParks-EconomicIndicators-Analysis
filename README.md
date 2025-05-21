@@ -22,7 +22,6 @@ This project analyzes how economic indicators influence visitation trends across
 - **All tables used in the project are in \tables folder.**
  
   ## 🛠️ Technologies Used
-- Microsoft SQL Server 2019
 - SQL Server Management Studio (SSMS)
 - Excel (for preprocessing)
 - Tableau (for visualization)
