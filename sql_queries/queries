@@ -1,0 +1,70 @@
+-- Dimension table for months, used for time-based analysis at the monthly level
+CREATE TABLE Dim_Month (
+    Month_ID INT NOT NULL PRIMARY KEY,
+    YearNumber INT,
+    MonthNumber INT,
+    MonthName VARCHAR(10),
+    QuarterName CHAR(2)
+);
+
+-- Dimension table for national parks, including name, state, region, and park code
+CREATE TABLE Dim_NationalPark (
+    Park_ID INT NOT NULL PRIMARY KEY,
+    Park_Name VARCHAR(40),
+    State CHAR(2),
+    Region VARCHAR(20),
+    Park_Code CHAR(4)
+);
+
+-- Dimension table for quarters, used for time-based analysis at the quarterly level
+CREATE TABLE Dim_Quarter (
+    Quarter_ID INT NOT NULL PRIMARY KEY,
+    YearNumber INT,
+    QuarterName CHAR(2)
+);
+
+-- Dimension table for visit types (e.g., recreation, non-recreation), including descriptions
+CREATE TABLE Dim_Visit_Type (
+    Visit_Type_ID INT NOT NULL PRIMARY KEY,
+    Visit_Type_Name VARCHAR(40),
+    Description VARCHAR(500)
+);
+
+-- Fact table containing monthly economic indicators like unemployment and CPI
+CREATE TABLE Fact_Economic_Indicators_Monthly (
+    Unemployment INT,
+    Unemployment_Rate FLOAT,
+    CPI FLOAT,
+    Month_ID INT,
+    FOREIGN KEY (Month_ID) REFERENCES Dim_Month(Month_ID)
+);
+
+-- Fact table containing quarterly economic data, including GDP per capita
+CREATE TABLE Fact_Economic_Indicators_Quarterly (
+    GDP_Per_Capita INT,
+    Quarter_ID INT,
+    DRCCLACBS NUMERIC(18, 2),
+    FOREIGN KEY (Quarter_ID) REFERENCES Dim_Quarter(Quarter_ID)
+);
+
+-- Fact table for park visit counts by month, type, and park
+CREATE TABLE Fact_Visitation_Month (
+    Visits INT,
+    Park_ID INT,
+    Visit_Type_ID INT,
+    Month_ID INT,
+    FOREIGN KEY (Month_ID) REFERENCES Dim_Month(Month_ID),
+    FOREIGN KEY (Park_ID) REFERENCES Dim_NationalPark(Park_ID),
+    FOREIGN KEY (Visit_Type_ID) REFERENCES Dim_Visit_Type(Visit_Type_ID)
+);
+
+-- Fact table for park visit counts by quarter, type, and park
+CREATE TABLE Fact_Visitation_Quarter (
+    Visits INT,
+    Visit_Type_ID INT,
+    Park_ID INT,
+    Quarter_ID INT,
+    FOREIGN KEY (Visit_Type_ID) REFERENCES Dim_Visit_Type(Visit_Type_ID),
+    FOREIGN KEY (Park_ID) REFERENCES Dim_NationalPark(Park_ID),
+    FOREIGN KEY (Quarter_ID) REFERENCES Dim_Quarter(Quarter_ID)
+);
