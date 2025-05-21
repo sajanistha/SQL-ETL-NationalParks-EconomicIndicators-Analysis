@@ -1,70 +1,143 @@
--- Dimension table for months, used for time-based analysis at the monthly level
-CREATE TABLE Dim_Month (
-    Month_ID INT NOT NULL PRIMARY KEY,
-    YearNumber INT,
-    MonthNumber INT,
-    MonthName VARCHAR(10),
-    QuarterName CHAR(2)
-);
+-- Get total park visitation per year
+SELECT 
+    dq.YearNumber,
+    SUM(fvq.Visits) AS Total_Visits
+FROM Fact_Visitation_Quarter fvq
+JOIN Dim_Quarter dq ON fvq.Quarter_ID = dq.Quarter_ID
+GROUP BY dq.YearNumber
+ORDER BY dq.YearNumber;
 
--- Dimension table for national parks, including name, state, region, and park code
-CREATE TABLE Dim_NationalPark (
-    Park_ID INT NOT NULL PRIMARY KEY,
-    Park_Name VARCHAR(40),
-    State CHAR(2),
-    Region VARCHAR(20),
-    Park_Code CHAR(4)
-);
+-- Get total park visitation by month across all years (ordered by calendar month)
+SELECT 
+    dm.MonthNumber,
+    dm.MonthName,
+    SUM(fvm.Visits) AS Total_Visits
+FROM Fact_Visitation_Month fvm
+JOIN Dim_Month dm ON fvm.Month_ID = dm.Month_ID
+GROUP BY dm.MonthNumber, dm.MonthName
+ORDER BY dm.MonthNumber;
 
--- Dimension table for quarters, used for time-based analysis at the quarterly level
-CREATE TABLE Dim_Quarter (
-    Quarter_ID INT NOT NULL PRIMARY KEY,
-    YearNumber INT,
-    QuarterName CHAR(2)
-);
+-- Get total park visitation by month
+SELECT 
+    dm.YearNumber,
+    dm.MonthNumber,
+    dm.MonthName,
+    SUM(fvm.Visits) AS Total_Visits
+FROM Fact_Visitation_Month fvm
+JOIN Dim_Month dm ON fvm.Month_ID = dm.Month_ID
+GROUP BY dm.YearNumber, dm.MonthNumber, dm.MonthName
+ORDER BY dm.YearNumber, dm.MonthNumber;
 
--- Dimension table for visit types (e.g., recreation, non-recreation), including descriptions
-CREATE TABLE Dim_Visit_Type (
-    Visit_Type_ID INT NOT NULL PRIMARY KEY,
-    Visit_Type_Name VARCHAR(40),
-    Description VARCHAR(500)
-);
+-- Compare total visitors for each visit types
+SELECT 
+    dvt.Visit_Type_Name,
+    SUM(CAST(fvq.Visits AS BIGINT)) AS Total_Visits
+FROM Fact_Visitation_Quarter fvq
+JOIN Dim_Visit_Type dvt ON fvq.Visit_Type_ID = dvt.Visit_Type_ID
+GROUP BY dvt.Visit_Type_Name
+ORDER BY Total_Visits DESC;
 
--- Fact table containing monthly economic indicators like unemployment and CPI
-CREATE TABLE Fact_Economic_Indicators_Monthly (
-    Unemployment INT,
-    Unemployment_Rate FLOAT,
-    CPI FLOAT,
-    Month_ID INT,
-    FOREIGN KEY (Month_ID) REFERENCES Dim_Month(Month_ID)
-);
+-- Get total recreation and non-recreation visits for each national park
+SELECT 
+    dnp.Park_Name,
+    SUM(CASE WHEN dvt.Visit_Type_Name = 'Recreation Visits' THEN fvq.Visits ELSE 0 END) AS Recreation_Visits,
+    SUM(CASE WHEN dvt.Visit_Type_Name = 'Non-Recreation Visits' THEN fvq.Visits ELSE 0 END) AS Non_Recreation_Visits,
+	SUM(fvq.Visits) AS Total_Visits
+FROM Fact_Visitation_Quarter fvq
+JOIN Dim_NationalPark dnp ON fvq.Park_ID = dnp.Park_ID
+JOIN Dim_Visit_Type dvt ON fvq.Visit_Type_ID = dvt.Visit_Type_ID
+GROUP BY dnp.Park_Name
+ORDER BY dnp.Park_Name;
 
--- Fact table containing quarterly economic data, including GDP per capita
-CREATE TABLE Fact_Economic_Indicators_Quarterly (
-    GDP_Per_Capita INT,
-    Quarter_ID INT,
-    DRCCLACBS NUMERIC(18, 2),
-    FOREIGN KEY (Quarter_ID) REFERENCES Dim_Quarter(Quarter_ID)
-);
 
--- Fact table for park visit counts by month, type, and park
-CREATE TABLE Fact_Visitation_Month (
-    Visits INT,
-    Park_ID INT,
-    Visit_Type_ID INT,
-    Month_ID INT,
-    FOREIGN KEY (Month_ID) REFERENCES Dim_Month(Month_ID),
-    FOREIGN KEY (Park_ID) REFERENCES Dim_NationalPark(Park_ID),
-    FOREIGN KEY (Visit_Type_ID) REFERENCES Dim_Visit_Type(Visit_Type_ID)
-);
+-- Analyze park visits and average GDP per capita by visit type and quarter
+SELECT 
+    dq.YearNumber,
+    dq.QuarterName,
+    dvt.Visit_Type_Name,
+    AVG(feiq.GDP_Per_Capita) AS Avg_GDP,
+    SUM(fvq.Visits) AS Total_Visits
+FROM Fact_Visitation_Quarter fvq
+JOIN Dim_Visit_Type dvt ON fvq.Visit_Type_ID = dvt.Visit_Type_ID
+JOIN Dim_Quarter dq ON fvq.Quarter_ID = dq.Quarter_ID
+JOIN Fact_Economic_Indicators_Quarterly feiq ON dq.Quarter_ID = feiq.Quarter_ID
+GROUP BY dq.YearNumber, dq.QuarterName, dvt.Visit_Type_Name
+ORDER BY dq.YearNumber, dq.QuarterName;
 
--- Fact table for park visit counts by quarter, type, and park
-CREATE TABLE Fact_Visitation_Quarter (
-    Visits INT,
-    Visit_Type_ID INT,
-    Park_ID INT,
-    Quarter_ID INT,
-    FOREIGN KEY (Visit_Type_ID) REFERENCES Dim_Visit_Type(Visit_Type_ID),
-    FOREIGN KEY (Park_ID) REFERENCES Dim_NationalPark(Park_ID),
-    FOREIGN KEY (Quarter_ID) REFERENCES Dim_Quarter(Quarter_ID)
-);
+-- Analyze quarterly overnight stays and average GDP per capita over time
+SELECT 
+    dq.YearNumber,
+    dq.QuarterName,
+    AVG(feiq.GDP_Per_Capita) AS Avg_GDP,
+    SUM(fvq.Visits) AS Overnight_Stays
+FROM Fact_Visitation_Quarter fvq
+JOIN Dim_Visit_Type dvt ON fvq.Visit_Type_ID = dvt.Visit_Type_ID
+JOIN Dim_Quarter dq ON fvq.Quarter_ID = dq.Quarter_ID
+JOIN Fact_Economic_Indicators_Quarterly feiq ON dq.Quarter_ID = feiq.Quarter_ID
+WHERE dvt.Visit_Type_Name LIKE '%Overnight%'
+GROUP BY dq.YearNumber, dq.QuarterName
+ORDER BY dq.YearNumber, dq.QuarterName;
+
+-- Get top 5 national parks ranked by total visits for each year (2020–2024)
+WITH YearlyRankedParks AS (
+    SELECT 
+        dq.YearNumber,
+        dnp.Park_Name,
+        dnp.State,
+        SUM(fvq.Visits) AS Total_Visits,
+        RANK() OVER (PARTITION BY dq.YearNumber ORDER BY SUM(fvq.Visits) DESC) AS TotalVisitsRank
+    FROM Fact_Visitation_Quarter fvq
+    JOIN Dim_NationalPark dnp ON fvq.Park_ID = dnp.Park_ID
+    JOIN Dim_Visit_Type dvt ON fvq.Visit_Type_ID = dvt.Visit_Type_ID
+    JOIN Dim_Quarter dq ON fvq.Quarter_ID = dq.Quarter_ID
+    WHERE dq.YearNumber BETWEEN 2020 AND 2024
+    GROUP BY dq.YearNumber, dnp.Park_Name, dnp.State
+)
+SELECT *
+FROM YearlyRankedParks
+WHERE TotalVisitsRank <= 5
+ORDER BY YearNumber, TotalVisitsRank;
+
+-- Compare national park visitation between 2019 and 2020,
+-- showing total visits, visit change, and percent change by park and region
+SELECT
+    dnp.Park_Name, dnp.Region,
+    SUM(CASE WHEN dq.YearNumber = 2019 THEN fvq.Visits END) AS Visits_2019,
+    SUM(CASE WHEN dq.YearNumber = 2020 THEN fvq.Visits END) AS Visits_2020,
+    SUM(CASE WHEN dq.YearNumber = 2020 THEN fvq.Visits END)
+      - SUM(CASE WHEN dq.YearNumber = 2019 THEN fvq.Visits END) AS Visit_Change,
+    ROUND(
+        100.0 * (
+            SUM(CASE WHEN dq.YearNumber = 2020 THEN fvq.Visits END)
+            - SUM(CASE WHEN dq.YearNumber = 2019 THEN fvq.Visits END)
+        ) / NULLIF(SUM(CASE WHEN dq.YearNumber = 2019 THEN fvq.Visits END), 0),
+        1
+    ) AS Percent_Change
+FROM Fact_Visitation_Quarter fvq
+JOIN Dim_Quarter dq ON fvq.Quarter_ID = dq.Quarter_ID
+JOIN Dim_NationalPark dnp ON fvq.Park_ID = dnp.Park_ID
+WHERE dq.YearNumber IN (2019, 2020)
+GROUP BY dnp.Park_Name, dnp.Region
+ORDER BY Percent_Change ASC;
+
+-- Get total visits and average CPI by year using monthly data
+SELECT 
+    dm.YearNumber,
+    SUM(fvm.Visits) AS Total_Visits,
+    ROUND(AVG(feim.CPI), 2) AS Avg_CPI
+FROM Fact_Visitation_Month fvm
+JOIN Dim_Month dm ON fvm.Month_ID = dm.Month_ID
+JOIN Fact_Economic_Indicators_Monthly feim ON dm.Month_ID = feim.Month_ID
+GROUP BY dm.YearNumber
+ORDER BY dm.YearNumber;
+
+-- Get total visits and average unemployment rate by calendar quarter using monthly data
+SELECT 
+    dm.QuarterName,
+    SUM(fvm.Visits) AS Total_Visits,
+    ROUND(AVG(feim.Unemployment_Rate), 2) AS Avg_Unemployment_Rate
+FROM Fact_Visitation_Month fvm
+JOIN Dim_Month dm ON fvm.Month_ID = dm.Month_ID
+JOIN Fact_Economic_Indicators_Monthly feim ON dm.Month_ID = feim.Month_ID
+GROUP BY dm.QuarterName
+ORDER BY dm.QuarterName;

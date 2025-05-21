@@ -34,7 +34,7 @@ This project follows a dimensional model that supports time-based analysis acros
 - The **dimension tables** (e.g., parks, time) provide contextual data for filtering and grouping.
 - The diagram below illustrates the relationships among the core tables.
 
-![Dimensional Model](dimensional_model.png)
+![Dimensional Model](images/dimensional_model.png)
 
 
 ## 🔗 Data Integration Process
@@ -52,6 +52,6 @@ This project follows a dimensional model that supports time-based analysis acros
 ## 🚀 Getting Started
 1. Clone the repository.
 2. Open SQL Server Management Studio (SSMS).
-3. Run the scripts in the `sql/create-tables` folder to create tables.
+3. Run the scripts in the `sql_queries/create-tables` folder to create tables.
 4. Use SSMS import manage to populate tables.
 5. Execute analysis queries or connect to a BI tool for visualization.
