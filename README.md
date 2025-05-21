@@ -19,6 +19,7 @@ This project analyzes how economic indicators influence visitation trends across
 - **Economic Indicators**:
   - Kaggle datasets (Unemployment, GDP, CPI)
   - AlphaVantage API (for time-series economic data)
+  - All tables used in the project are in /tables folder.
  
   ## 🛠️ Technologies Used
 - Microsoft SQL Server 2019
@@ -35,7 +36,6 @@ This project follows a dimensional model that supports time-based analysis acros
 - The diagram below illustrates the relationships among the core tables.
 
 ![Dimensional Model](images/dimensional_model.png)
-
 
 ## 🔗 Data Integration Process
 - All datasets were transformed into a **quarterly format** for temporal consistency.
