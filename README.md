@@ -34,7 +34,7 @@ This project follows a dimensional model that supports time-based analysis acros
 - The **dimension tables** (e.g., parks, time) provide contextual data for filtering and grouping.
 - The diagram below illustrates the relationships among the core tables.
 
-![Dimensional Model](diagrams/dimensional_model.png)
+![Dimensional Model](dimensional_model.png)
 
 
 ## 🔗 Data Integration Process
